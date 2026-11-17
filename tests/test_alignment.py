@@ -63,3 +63,46 @@ def test_empty_sequence():
     results = find_off_targets(sequences, "ATGCGTACGTAG", 2)
 
     assert len(results) == 0
+
+
+def test_numba_matches_cpu_results():
+    from src.alignment.numba_accelerated import find_off_targets_numba
+
+    sequences = [{
+        "id": "Gene_A",
+        "sequence": "ATGCGTACGTAG",
+    }]
+
+    cpu_results = find_off_targets(
+        sequences, "ATGCGTACGTAG", 2
+    )
+
+    numba_results = find_off_targets_numba(
+        sequences, "ATGCGTACGTAG", 2
+    )
+
+    assert numba_results == cpu_results
+    
+
+def test_empty_guide_sequence():
+    sequences = [{
+        "id": "Gene_A",
+        "sequence": "ATGCGTACGTAG",
+    }]
+
+    import pytest
+
+    with pytest.raises(ValueError):
+        find_off_targets(sequences, "", 2)
+
+
+def test_negative_mismatch_limit():
+    sequences = [{
+        "id": "Gene_A",
+        "sequence": "ATGCGTACGTAG",
+    }]
+
+    import pytest
+
+    with pytest.raises(ValueError):
+        find_off_targets(sequences, "ATGCGTACGTAG", -1)

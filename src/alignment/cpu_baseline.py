@@ -3,7 +3,12 @@
     Find DNA regions matching a CRISPR guide sequence.
     Uses sliding-window Hamming distance.
     """
+    if not guide_sequence:
+        raise ValueError("Guide sequence cannot be empty")
 
+    if max_mismatches < 0:
+        raise ValueError("Maximum mismatches cannot be negative")
+    
     guide_sequence = guide_sequence.upper()
     guide_length = len(guide_sequence)
 
