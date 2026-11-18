@@ -1,5 +1,6 @@
 ﻿from src.genomics.fasta_parser import parse_fasta
 from src.alignment.cpu_baseline import find_off_targets
+from src.alignment.dask_accelerated import find_off_targets_dask
 
 
 def test_fasta_parser(tmp_path):
@@ -106,3 +107,64 @@ def test_negative_mismatch_limit():
 
     with pytest.raises(ValueError):
         find_off_targets(sequences, "ATGCGTACGTAG", -1)
+
+
+def test_dask_matches_cpu_results():
+    sequences = [
+        {"id": "Gene_A", "sequence": "ATGCGTACGTAG"},
+        {"id": "Gene_B", "sequence": "ATGCGTACGTAA"},
+    ]
+
+    cpu_results = find_off_targets(
+        sequences, "ATGCGTACGTAG", 2
+    )
+
+    dask_results = find_off_targets_dask(
+        sequences, "ATGCGTACGTAG", 2
+    )
+
+    assert dask_results == cpu_results
+
+
+def test_dask_empty_guide_sequence():
+    import pytest
+
+    sequences = [{"id": "Gene_A", "sequence": "ATGCGTACGTAG"}]
+
+    with pytest.raises(ValueError):
+        find_off_targets_dask(sequences, "", 2)
+
+
+def test_dask_negative_mismatch_limit():
+    import pytest
+
+    sequences = [{"id": "Gene_A", "sequence": "ATGCGTACGTAG"}]
+
+    with pytest.raises(ValueError):
+        find_off_targets_dask(sequences, "ATGCGTACGTAG", -1)
+
+
+def test_dask_empty_gene_list():
+    results = find_off_targets_dask(
+        [], "ATGCGTACGTAG", 2
+    )
+
+    assert results == []
+
+
+def test_dask_multiple_genes_with_no_match():
+    sequences = [
+        {"id": "Gene_A", "sequence": "ATGCGTACGTAG"},
+        {"id": "Gene_B", "sequence": "CCCCCCCCCCCC"},
+        {"id": "Gene_C", "sequence": "ATGCGTACGTAA"},
+    ]
+
+    cpu_results = find_off_targets(
+        sequences, "ATGCGTACGTAG", 2
+    )
+
+    dask_results = find_off_targets_dask(
+        sequences, "ATGCGTACGTAG", 2
+    )
+
+    assert dask_results == cpu_results
