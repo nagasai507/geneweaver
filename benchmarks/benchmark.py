@@ -1,4 +1,5 @@
-﻿import sys
+﻿
+import sys
 import time
 import random
 import statistics
@@ -9,6 +10,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.alignment.cpu_baseline import find_off_targets
 from src.alignment.numba_accelerated import find_off_targets_numba
+from src.alignment.dask_accelerated import find_off_targets_dask
 
 
 def create_test_data():
@@ -41,11 +43,13 @@ def run_benchmark(iterations=20):
     print("Total DNA bases:", sum(len(g["sequence"]) for g in sequences))
     print("Iterations:", iterations)
 
-    # Warm-up Numba before measuring
+    # Warm up Numba and Dask before measuring
     find_off_targets_numba(sequences, guide, 2)
+    find_off_targets_dask(sequences, guide, 2)
 
     cpu_times = []
     numba_times = []
+    dask_times = []
 
     for _ in range(iterations):
 
@@ -57,10 +61,16 @@ def run_benchmark(iterations=20):
         numba_results = find_off_targets_numba(sequences, guide, 2)
         numba_times.append((time.perf_counter() - start) * 1000)
 
-    assert cpu_results == numba_results
+        start = time.perf_counter()
+        dask_results = find_off_targets_dask(sequences, guide, 2)
+        dask_times.append((time.perf_counter() - start) * 1000)
+
+    # Verify that all three methods produce identical results
+    assert cpu_results == numba_results == dask_results
 
     cpu_average = statistics.mean(cpu_times)
     numba_average = statistics.mean(numba_times)
+    dask_average = statistics.mean(dask_times)
 
     print("\n===== CPU RESULTS =====")
     print(f"Average: {cpu_average:.4f} ms")
@@ -70,16 +80,24 @@ def run_benchmark(iterations=20):
     print(f"Average: {numba_average:.4f} ms")
     print(f"Median: {statistics.median(numba_times):.4f} ms")
 
+    print("\n===== DASK RESULTS =====")
+    print(f"Average: {dask_average:.4f} ms")
+    print(f"Median: {statistics.median(dask_times):.4f} ms")
+
     print("\n===== PERFORMANCE SUMMARY =====")
     print("Potential matches:", len(cpu_results))
     print("Results identical: YES")
 
-    if numba_average < cpu_average:
-        print(f"Numba speedup: {cpu_average / numba_average:.2f}x")
-    else:
-        print(f"Numba performance ratio: {numba_average / cpu_average:.2f}x slower")
+    for name, average in [
+        ("Numba", numba_average),
+        ("Dask", dask_average)
+    ]:
+        if average < cpu_average:
+            print(f"{name} speedup: {cpu_average / average:.2f}x")
+        else:
+            print(f"{name} performance ratio: {average / cpu_average:.2f}x slower")
 
-    print("\nLarge data benchmark completed!")
+    print("\nThree-method benchmark completed!")
 
 
 if __name__ == "__main__":
