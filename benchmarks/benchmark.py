@@ -38,69 +38,88 @@ def create_test_data(num_genes=3, sequence_length=50000):
 
 def run_benchmark(iterations=20):
 
-    sequences, guide = create_test_data()
+    dataset_sizes = [
+        ("Small", 3),
+        ("Medium", 10),
+        ("Large", 25)
+    ]
 
-    print("\n===== GENEWEAVER LARGE DATA BENCHMARK =====")
-    print("Synthetic DNA sequences:", len(sequences))
-    print("Bases per sequence:", len(sequences[0]["sequence"]))
-    print("Total DNA bases:", sum(len(g["sequence"]) for g in sequences))
-    print("Iterations:", iterations)
+    print("\n===== GENEWEAVER SCALABILITY BENCHMARK =====")
+    print("Iterations per method:", iterations)
 
-    # Warm up Numba and Dask before measuring
-    find_off_targets_numba(sequences, guide, 2)
-    find_off_targets_dask(sequences, guide, 2)
+    for dataset_name, num_genes in dataset_sizes:
 
-    cpu_times = []
-    numba_times = []
-    dask_times = []
+        sequences, guide = create_test_data(
+            num_genes=num_genes,
+            sequence_length=50000
+        )
 
-    for _ in range(iterations):
+        total_bases = sum(
+            len(gene["sequence"]) for gene in sequences
+        )
 
-        start = time.perf_counter()
-        cpu_results = find_off_targets(sequences, guide, 2)
-        cpu_times.append((time.perf_counter() - start) * 1000)
+        print(f"\n===== {dataset_name.upper()} DATASET =====")
+        print("Number of genes:", num_genes)
+        print("Bases per gene:", len(sequences[0]["sequence"]))
+        print("Total DNA bases:", total_bases)
 
-        start = time.perf_counter()
-        numba_results = find_off_targets_numba(sequences, guide, 2)
-        numba_times.append((time.perf_counter() - start) * 1000)
+        # Warm up Numba and Dask before measuring
+        find_off_targets_numba(sequences, guide, 2)
+        find_off_targets_dask(sequences, guide, 2)
 
-        start = time.perf_counter()
-        dask_results = find_off_targets_dask(sequences, guide, 2)
-        dask_times.append((time.perf_counter() - start) * 1000)
+        cpu_times = []
+        numba_times = []
+        dask_times = []
 
-    # Verify that all three methods produce identical results
-    assert cpu_results == numba_results == dask_results
+        for _ in range(iterations):
 
-    cpu_average = statistics.mean(cpu_times)
-    numba_average = statistics.mean(numba_times)
-    dask_average = statistics.mean(dask_times)
+            start = time.perf_counter()
+            cpu_results = find_off_targets(sequences, guide, 2)
+            cpu_times.append((time.perf_counter() - start) * 1000)
 
-    print("\n===== CPU RESULTS =====")
-    print(f"Average: {cpu_average:.4f} ms")
-    print(f"Median: {statistics.median(cpu_times):.4f} ms")
+            start = time.perf_counter()
+            numba_results = find_off_targets_numba(sequences, guide, 2)
+            numba_times.append((time.perf_counter() - start) * 1000)
 
-    print("\n===== NUMBA RESULTS =====")
-    print(f"Average: {numba_average:.4f} ms")
-    print(f"Median: {statistics.median(numba_times):.4f} ms")
+            start = time.perf_counter()
+            dask_results = find_off_targets_dask(sequences, guide, 2)
+            dask_times.append((time.perf_counter() - start) * 1000)
 
-    print("\n===== DASK RESULTS =====")
-    print(f"Average: {dask_average:.4f} ms")
-    print(f"Median: {statistics.median(dask_times):.4f} ms")
+        # Verify that all methods produce identical results
+        assert cpu_results == numba_results == dask_results
 
-    print("\n===== PERFORMANCE SUMMARY =====")
-    print("Potential matches:", len(cpu_results))
-    print("Results identical: YES")
+        cpu_average = statistics.mean(cpu_times)
+        numba_average = statistics.mean(numba_times)
+        dask_average = statistics.mean(dask_times)
 
-    for name, average in [
-        ("Numba", numba_average),
-        ("Dask", dask_average)
-    ]:
-        if average < cpu_average:
-            print(f"{name} speedup: {cpu_average / average:.2f}x")
-        else:
-            print(f"{name} performance ratio: {average / cpu_average:.2f}x slower")
+        print("\nCPU average:", f"{cpu_average:.4f} ms")
+        print("CPU median:", f"{statistics.median(cpu_times):.4f} ms")
 
-    print("\nThree-method benchmark completed!")
+        print("\nNumba average:", f"{numba_average:.4f} ms")
+        print("Numba median:", f"{statistics.median(numba_times):.4f} ms")
+
+        print("\nDask average:", f"{dask_average:.4f} ms")
+        print("Dask median:", f"{statistics.median(dask_times):.4f} ms")
+
+        print("\nPotential matches:", len(cpu_results))
+        print("Results identical: YES")
+
+        print("\nPerformance compared with CPU:")
+
+        for name, average in [
+            ("Numba", numba_average),
+            ("Dask", dask_average)
+        ]:
+            if average < cpu_average:
+                print(f"{name} speedup: {cpu_average / average:.2f}x")
+            else:
+                print(
+                    f"{name} performance ratio: "
+                    f"{average / cpu_average:.2f}x slower"
+                )
+
+    print("\n===== SCALABILITY BENCHMARK COMPLETED =====")
+
 
 
 if __name__ == "__main__":
