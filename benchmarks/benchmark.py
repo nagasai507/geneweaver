@@ -13,13 +13,16 @@ from src.alignment.numba_accelerated import find_off_targets_numba
 from src.alignment.dask_accelerated import find_off_targets_dask
 
 
-def create_test_data():
+def create_test_data(num_genes=3, sequence_length=50000):
     rng = random.Random(42)
     guide = "ATGCGTACGTAG"
     sequences = []
 
-    for i in range(3):
-        dna = [rng.choice("ATGC") for _ in range(50000)]
+    if sequence_length < 25012:
+        raise ValueError("Sequence length is too short")
+
+    for i in range(num_genes):
+        dna = [rng.choice("ATGC") for _ in range(sequence_length)]
 
         # Insert known exact matches
         dna[1000:1012] = guide
