@@ -48,3 +48,17 @@ def test_benchmark_rejects_short_sequences():
 
     with pytest.raises(ValueError):
         create_test_data(sequence_length=10000)
+
+
+def test_benchmark_rejects_zero_genes():
+    import pytest
+
+    with pytest.raises(ValueError):
+        create_test_data(num_genes=0)
+
+
+def test_benchmark_rejects_negative_genes():
+    import pytest
+
+    with pytest.raises(ValueError):
+        create_test_data(num_genes=-5)

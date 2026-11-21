@@ -18,6 +18,9 @@ def create_test_data(num_genes=3, sequence_length=50000):
     guide = "ATGCGTACGTAG"
     sequences = []
 
+    if num_genes <= 0:
+        raise ValueError("Number of genes must be positive")
+
     if sequence_length < 25012:
         raise ValueError("Sequence length is too short")
 
