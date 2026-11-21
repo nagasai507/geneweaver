@@ -1,5 +1,4 @@
-
-from benchmarks.benchmark import create_test_data
+from benchmarks.benchmark import create_test_data, run_benchmark
 
 
 def test_benchmark_creates_three_genes():
@@ -62,3 +61,17 @@ def test_benchmark_rejects_negative_genes():
 
     with pytest.raises(ValueError):
         create_test_data(num_genes=-5)
+
+
+def test_benchmark_rejects_zero_iterations():
+    import pytest
+
+    with pytest.raises(ValueError):
+        run_benchmark(iterations=0)
+
+
+def test_benchmark_rejects_negative_iterations():
+    import pytest
+
+    with pytest.raises(ValueError):
+        run_benchmark(iterations=-5)

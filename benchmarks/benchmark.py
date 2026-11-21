@@ -41,6 +41,9 @@ def create_test_data(num_genes=3, sequence_length=50000):
 
 def run_benchmark(iterations=20):
 
+    if iterations <= 0:
+        raise ValueError("Number of iterations must be positive")
+
     dataset_sizes = [
         ("Small", 3),
         ("Medium", 10),
