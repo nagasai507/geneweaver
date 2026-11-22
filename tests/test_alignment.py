@@ -168,3 +168,33 @@ def test_dask_multiple_genes_with_no_match():
     )
 
     assert dask_results == cpu_results
+
+
+def test_fasta_parser_preserves_unknown_base(tmp_path):
+    fasta_file = tmp_path / "unknown.fasta"
+    fasta_file.write_text(">Gene_A\nATGCNATGC\n")
+
+    sequences = parse_fasta(str(fasta_file))
+
+    assert sequences[0]["sequence"] == "ATGCNATGC"
+    assert sequences[0]["length"] == 9
+
+
+def test_fasta_parser_rejects_invalid_base(tmp_path):
+    import pytest
+
+    fasta_file = tmp_path / "invalid.fasta"
+    fasta_file.write_text(">Gene_A\nATGCXATGC\n")
+
+    with pytest.raises(ValueError, match="invalid DNA base"):
+        parse_fasta(str(fasta_file))
+
+
+def test_fasta_parser_accepts_valid_dna(tmp_path):
+    fasta_file = tmp_path / "valid.fasta"
+    fasta_file.write_text(">Gene_A\nATGCATGC\n")
+
+    sequences = parse_fasta(str(fasta_file))
+
+    assert sequences[0]["sequence"] == "ATGCATGC"
+    assert sequences[0]["length"] == 8
