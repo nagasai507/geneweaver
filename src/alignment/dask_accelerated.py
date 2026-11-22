@@ -1,7 +1,7 @@
-
 from dask import delayed, compute
 
 from src.alignment.cpu_baseline import find_off_targets
+from src.alignment.validation import validate_guide_sequence
 
 
 def _process_gene(gene, guide_sequence, max_mismatches):
@@ -24,8 +24,7 @@ def find_off_targets_dask(
     Find potential off-target matches using Dask parallel processing.
     """
 
-    if not guide_sequence:
-        raise ValueError("Guide sequence cannot be empty")
+    guide_sequence = validate_guide_sequence(guide_sequence)
 
     if max_mismatches < 0:
         raise ValueError("Maximum mismatches cannot be negative")

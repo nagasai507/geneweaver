@@ -1,5 +1,5 @@
 from numba import njit
-
+from src.alignment.validation import validate_guide_sequence
 
 @njit
 def _find_matches(gene_sequences, guide_sequence, max_mismatches):
@@ -21,10 +21,8 @@ def _find_matches(gene_sequences, guide_sequence, max_mismatches):
 
     return matches
 
-
 def find_off_targets_numba(sequences, guide_sequence, max_mismatches=2):
-    if not guide_sequence:
-        raise ValueError("Guide sequence cannot be empty")
+    guide_sequence = validate_guide_sequence(guide_sequence)
 
     if max_mismatches < 0:
         raise ValueError("Maximum mismatches cannot be negative")
@@ -33,7 +31,6 @@ def find_off_targets_numba(sequences, guide_sequence, max_mismatches=2):
         gene["sequence"].upper() for gene in sequences
     ]
 
-    guide_sequence = guide_sequence.upper()
 
     raw_matches = _find_matches(
     tuple(gene_sequences),

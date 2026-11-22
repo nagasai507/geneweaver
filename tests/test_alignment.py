@@ -1,6 +1,9 @@
-﻿from src.genomics.fasta_parser import parse_fasta
+﻿import pytest
+
+from src.genomics.fasta_parser import parse_fasta
 from src.alignment.cpu_baseline import find_off_targets
 from src.alignment.dask_accelerated import find_off_targets_dask
+from src.alignment.numba_accelerated import find_off_targets_numba
 
 
 def test_fasta_parser(tmp_path):
@@ -198,3 +201,45 @@ def test_fasta_parser_accepts_valid_dna(tmp_path):
 
     assert sequences[0]["sequence"] == "ATGCATGC"
     assert sequences[0]["length"] == 8
+
+
+@pytest.mark.parametrize(
+    "finder",
+    [
+        find_off_targets,
+        find_off_targets_numba,
+        find_off_targets_dask,
+    ],
+)
+@pytest.mark.parametrize("guide", ["ATGCXATG", "ATGCNATG"])
+
+
+def test_alignment_rejects_invalid_guide_bases(finder, guide):
+    sequences = [{
+        "id": "Gene_A",
+        "sequence": "ATGCATGC",
+    }]
+
+    with pytest.raises(ValueError, match="invalid DNA base"):
+        finder(sequences, guide, 2)
+
+@pytest.mark.parametrize(
+    "finder",
+    [
+        find_off_targets,
+        find_off_targets_numba,
+        find_off_targets_dask,
+    ],
+)
+
+
+def test_alignment_accepts_lowercase_guide(finder):
+    sequences = [{
+        "id": "Gene_A",
+        "sequence": "ATGCATGC",
+    }]
+
+    results = finder(sequences, "atgcatgc", 0)
+
+    assert len(results) == 1
+    assert results[0]["mismatches"] == 0
