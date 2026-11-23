@@ -12,6 +12,10 @@ def parse_fasta(file_path):
     for record in SeqIO.parse(file_path, "fasta"):
         sequence = str(record.seq).upper()
 
+        if not sequence:
+            raise ValueError(
+                f"Gene '{record.id}' contains an empty DNA sequence"
+            )
         invalid_bases = set(sequence) - valid_bases
 
         if invalid_bases:

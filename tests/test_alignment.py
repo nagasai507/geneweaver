@@ -243,3 +243,10 @@ def test_alignment_accepts_lowercase_guide(finder):
 
     assert len(results) == 1
     assert results[0]["mismatches"] == 0
+
+def test_fasta_parser_rejects_empty_gene_sequence(tmp_path):
+    fasta_file = tmp_path / "empty_gene.fasta"
+    fasta_file.write_text(">Gene_A\n")
+
+    with pytest.raises(ValueError, match="empty DNA sequence"):
+        parse_fasta(str(fasta_file))
