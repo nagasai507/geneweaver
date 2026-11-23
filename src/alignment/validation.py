@@ -17,3 +17,20 @@ def validate_guide_sequence(guide_sequence):
         )
 
     return guide_sequence
+
+
+def validate_max_mismatches(max_mismatches):
+    """
+    Validate the maximum allowed number of mismatches.
+    It must be a non-negative integer.
+    """
+    if (
+        isinstance(max_mismatches, bool)
+        or not isinstance(max_mismatches, int)
+        or max_mismatches < 0
+    ):
+        raise ValueError(
+            "Maximum mismatches must be a non-negative integer"
+        )
+
+    return max_mismatches

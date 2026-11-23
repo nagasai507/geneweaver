@@ -1,7 +1,10 @@
 from dask import delayed, compute
 
 from src.alignment.cpu_baseline import find_off_targets
-from src.alignment.validation import validate_guide_sequence
+from src.alignment.validation import (
+    validate_guide_sequence,
+    validate_max_mismatches,
+)
 
 
 def _process_gene(gene, guide_sequence, max_mismatches):
@@ -26,8 +29,7 @@ def find_off_targets_dask(
 
     guide_sequence = validate_guide_sequence(guide_sequence)
 
-    if max_mismatches < 0:
-        raise ValueError("Maximum mismatches cannot be negative")
+    max_mismatches = validate_max_mismatches(max_mismatches)
 
     tasks = [
         delayed(_process_gene)(

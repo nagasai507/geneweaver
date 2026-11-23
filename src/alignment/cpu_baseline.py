@@ -1,4 +1,7 @@
-﻿from src.alignment.validation import validate_guide_sequence
+﻿from src.alignment.validation import (
+    validate_guide_sequence,
+    validate_max_mismatches,
+)
 
 def find_off_targets(sequences, guide_sequence, max_mismatches=2):
     """
@@ -7,9 +10,7 @@ def find_off_targets(sequences, guide_sequence, max_mismatches=2):
     """
     guide_sequence = validate_guide_sequence(guide_sequence)
 
-    if max_mismatches < 0:
-        raise ValueError("Maximum mismatches cannot be negative")
-    
+    max_mismatches = validate_max_mismatches(max_mismatches)
     guide_length = len(guide_sequence)
 
     results = []
