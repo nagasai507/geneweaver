@@ -12,6 +12,17 @@ from src.alignment.cpu_baseline import find_off_targets
 from src.alignment.numba_accelerated import find_off_targets_numba
 from src.alignment.dask_accelerated import find_off_targets_dask
 
+def _validate_matching_results(cpu_results, numba_results, dask_results):
+    """
+    Ensure CPU, Numba, and Dask produce identical results.
+    """
+    if not (
+        cpu_results == numba_results == dask_results
+    ):
+        raise RuntimeError(
+            "CPU, Numba, and Dask produced different results"
+        )
+
 def _validate_positive_integer(value, parameter_name):
     """
     Validate that a value is a positive integer.
@@ -110,7 +121,11 @@ def run_benchmark(iterations=20):
             dask_times.append((time.perf_counter() - start) * 1000)
 
         # Verify that all methods produce identical results
-        assert cpu_results == numba_results == dask_results
+        _validate_matching_results(
+            cpu_results,
+            numba_results,
+            dask_results
+        )
 
         cpu_average = statistics.mean(cpu_times)
         numba_average = statistics.mean(numba_times)

@@ -1,5 +1,9 @@
 import pytest
-from benchmarks.benchmark import create_test_data, run_benchmark
+from benchmarks.benchmark import (
+    create_test_data,
+    run_benchmark,
+    _validate_matching_results,
+)
 
 
 def test_benchmark_creates_three_genes():
@@ -97,3 +101,23 @@ def test_benchmark_rejects_non_integer_inputs(function, kwargs):
         match="must be a positive integer",
     ):
         function(**kwargs)
+
+def test_benchmark_accepts_identical_results():
+    results = [{"gene": "Gene_1", "risk": "HIGH"}]
+
+    _validate_matching_results(results, results, results)
+
+def test_benchmark_rejects_different_results():
+    cpu_results = [{"gene": "Gene_1", "risk": "HIGH"}]
+    numba_results = [{"gene": "Gene_1", "risk": "LOW"}]
+    dask_results = [{"gene": "Gene_1", "risk": "HIGH"}]
+
+    with pytest.raises(
+        RuntimeError,
+        match="produced different results",
+    ):
+        _validate_matching_results(
+            cpu_results,
+            numba_results,
+            dask_results,
+        )
