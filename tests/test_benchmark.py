@@ -1,3 +1,4 @@
+import pytest
 from benchmarks.benchmark import create_test_data, run_benchmark
 
 
@@ -75,3 +76,24 @@ def test_benchmark_rejects_negative_iterations():
 
     with pytest.raises(ValueError):
         run_benchmark(iterations=-5)
+
+@pytest.mark.parametrize(
+    "function, kwargs",
+    [
+        (create_test_data, {"num_genes": 2.5}),
+        (create_test_data, {"num_genes": True}),
+        (create_test_data, {"num_genes": "3"}),
+        (create_test_data, {"sequence_length": 30000.5}),
+        (create_test_data, {"sequence_length": True}),
+        (create_test_data, {"sequence_length": "30000"}),
+        (run_benchmark, {"iterations": 2.5}),
+        (run_benchmark, {"iterations": True}),
+        (run_benchmark, {"iterations": "2"}),
+    ],
+)
+def test_benchmark_rejects_non_integer_inputs(function, kwargs):
+    with pytest.raises(
+        ValueError,
+        match="must be a positive integer",
+    ):
+        function(**kwargs)

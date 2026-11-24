@@ -12,14 +12,31 @@ from src.alignment.cpu_baseline import find_off_targets
 from src.alignment.numba_accelerated import find_off_targets_numba
 from src.alignment.dask_accelerated import find_off_targets_dask
 
+def _validate_positive_integer(value, parameter_name):
+    """
+    Validate that a value is a positive integer.
+    Boolean values are not accepted as integers.
+    """
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or value <= 0
+    ):
+        raise ValueError(
+            f"{parameter_name} must be a positive integer"
+        )
+    return value
+
 
 def create_test_data(num_genes=3, sequence_length=50000):
     rng = random.Random(42)
     guide = "ATGCGTACGTAG"
     sequences = []
 
-    if num_genes <= 0:
-        raise ValueError("Number of genes must be positive")
+    num_genes = _validate_positive_integer(num_genes, "Number of genes")
+    sequence_length = _validate_positive_integer(
+        sequence_length, "Sequence length"
+    )
 
     if sequence_length < 25012:
         raise ValueError("Sequence length is too short")
@@ -41,8 +58,9 @@ def create_test_data(num_genes=3, sequence_length=50000):
 
 def run_benchmark(iterations=20):
 
-    if iterations <= 0:
-        raise ValueError("Number of iterations must be positive")
+    iterations = _validate_positive_integer(
+        iterations, "Number of iterations"
+    )
 
     dataset_sizes = [
         ("Small", 3),
