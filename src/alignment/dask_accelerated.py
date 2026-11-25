@@ -4,6 +4,7 @@ from src.alignment.cpu_baseline import find_off_targets
 from src.alignment.validation import (
     validate_guide_sequence,
     validate_max_mismatches,
+    validate_gene_records,
 )
 
 
@@ -28,8 +29,8 @@ def find_off_targets_dask(
     """
 
     guide_sequence = validate_guide_sequence(guide_sequence)
-
     max_mismatches = validate_max_mismatches(max_mismatches)
+    sequences = validate_gene_records(sequences)
 
     tasks = [
         delayed(_process_gene)(

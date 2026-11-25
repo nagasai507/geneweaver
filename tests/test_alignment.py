@@ -299,3 +299,48 @@ def test_alignment_rejects_non_string_guide(finder, guide):
         match="Guide sequence must be a string",
     ):
         finder(sequences, guide, 2)
+
+@pytest.mark.parametrize(
+    "finder",
+    [
+        find_off_targets,
+        find_off_targets_numba,
+        find_off_targets_dask,
+    ],
+)
+@pytest.mark.parametrize(
+    "gene, error_message",
+    [
+        (
+            None,
+            "Gene record at index 0 must be a dictionary",
+        ),
+        (
+            {"sequence": "ATGC"},
+            "Gene record at index 0 is missing 'id'",
+        ),
+        (
+            {"id": "Gene_A"},
+            "Gene record at index 0 is missing 'sequence'",
+        ),
+        (
+            {"id": "", "sequence": "ATGC"},
+            "Gene ID at index 0 must be a non-empty string",
+        ),
+        (
+            {"id": 123, "sequence": "ATGC"},
+            "Gene ID at index 0 must be a non-empty string",
+        ),
+        (
+            {"id": "Gene_A", "sequence": 123},
+            "Gene sequence at index 0 must be a string",
+        ),
+    ],
+)
+def test_alignment_rejects_invalid_gene_records(
+    finder,
+    gene,
+    error_message,
+):
+    with pytest.raises(ValueError, match=error_message):
+        finder([gene], "ATGC", 2)

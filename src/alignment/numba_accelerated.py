@@ -2,6 +2,7 @@ from numba import njit
 from src.alignment.validation import (
     validate_guide_sequence,
     validate_max_mismatches,
+    validate_gene_records,
 )
 
 @njit
@@ -28,6 +29,7 @@ def find_off_targets_numba(sequences, guide_sequence, max_mismatches=2):
     guide_sequence = validate_guide_sequence(guide_sequence)
 
     max_mismatches = validate_max_mismatches(max_mismatches)
+    sequences = validate_gene_records(sequences)
     gene_sequences = [
         gene["sequence"].upper() for gene in sequences
     ]
