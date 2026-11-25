@@ -3,6 +3,9 @@ def validate_guide_sequence(guide_sequence):
     Validate and normalize a CRISPR guide DNA sequence.
     Only A, T, G and C are allowed.
     """
+    if not isinstance(guide_sequence, str):
+        raise ValueError("Guide sequence must be a string")
+
     if not guide_sequence:
         raise ValueError("Guide sequence cannot be empty")
 
@@ -17,7 +20,6 @@ def validate_guide_sequence(guide_sequence):
         )
 
     return guide_sequence
-
 
 def validate_max_mismatches(max_mismatches):
     """

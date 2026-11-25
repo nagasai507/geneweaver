@@ -251,7 +251,6 @@ def test_fasta_parser_rejects_empty_gene_sequence(tmp_path):
     with pytest.raises(ValueError, match="empty DNA sequence"):
         parse_fasta(str(fasta_file))
 
-
 @pytest.mark.parametrize(
     "finder",
     [
@@ -277,3 +276,26 @@ def test_alignment_rejects_invalid_mismatch_limits(
         match="Maximum mismatches must be a non-negative integer",
     ):
         finder(sequences, "ATGC", max_mismatches)
+
+@pytest.mark.parametrize(
+    "finder",
+    [
+        find_off_targets,
+        find_off_targets_numba,
+        find_off_targets_dask,
+    ],
+)
+@pytest.mark.parametrize(
+    "guide",
+    [12345, None, ["A", "T", "G", "C"]],
+)
+def test_alignment_rejects_non_string_guide(finder, guide):
+    sequences = [
+        {"id": "Gene_A", "sequence": "ATGCATGC"}
+    ]
+
+    with pytest.raises(
+        ValueError,
+        match="Guide sequence must be a string",
+    ):
+        finder(sequences, guide, 2)
