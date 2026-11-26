@@ -335,6 +335,10 @@ def test_alignment_rejects_non_string_guide(finder, guide):
             {"id": "Gene_A", "sequence": 123},
             "Gene sequence at index 0 must be a string",
         ),
+        (
+            {"id": "Gene_A", "sequence": " "},
+            "Gene sequence at index 0 cannot be empty",
+        ),
     ],
 )
 def test_alignment_rejects_invalid_gene_records(

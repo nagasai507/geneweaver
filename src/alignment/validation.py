@@ -69,6 +69,11 @@ def validate_gene_records(sequences):
                 f"Gene sequence at index {index} must be a string"
             )
 
+        if gene["sequence"] and not gene["sequence"].strip():
+            raise ValueError(
+                f"Gene sequence at index {index} cannot be empty"
+            )
+
         validated_gene = gene.copy()
         validated_gene["sequence"] = gene["sequence"].upper()
 
