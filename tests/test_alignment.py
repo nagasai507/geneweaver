@@ -344,3 +344,13 @@ def test_alignment_rejects_invalid_gene_records(
 ):
     with pytest.raises(ValueError, match=error_message):
         finder([gene], "ATGC", 2)
+
+def test_fasta_parser_rejects_empty_file(tmp_path):
+    fasta_file = tmp_path / "empty.fasta"
+    fasta_file.write_text("")
+
+    with pytest.raises(
+        ValueError,
+        match="FASTA file contains no sequences",
+    ):
+        parse_fasta(str(fasta_file))

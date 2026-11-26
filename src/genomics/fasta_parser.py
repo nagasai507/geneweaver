@@ -1,4 +1,4 @@
-from Bio import SeqIO
+﻿from Bio import SeqIO
 
 
 def parse_fasta(file_path):
@@ -16,6 +16,7 @@ def parse_fasta(file_path):
             raise ValueError(
                 f"Gene '{record.id}' contains an empty DNA sequence"
             )
+
         invalid_bases = set(sequence) - valid_bases
 
         if invalid_bases:
@@ -30,6 +31,9 @@ def parse_fasta(file_path):
             "sequence": sequence,
             "length": len(sequence)
         })
+
+    if not sequences:
+        raise ValueError("FASTA file contains no sequences")
 
     return sequences
 
