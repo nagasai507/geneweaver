@@ -4,3 +4,4 @@ pandas
 pytest
 numba
 dask[distributed]
+numba-cuda[cu13]

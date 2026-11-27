@@ -358,3 +358,117 @@ def test_fasta_parser_rejects_empty_file(tmp_path):
         match="FASTA file contains no sequences",
     ):
         parse_fasta(str(fasta_file))
+
+# ==========================================
+# CUDA ALIGNMENT TESTS
+# ==========================================
+
+import src.alignment.cuda_accelerated as cuda_module
+from src.alignment.cuda_accelerated import find_off_targets_cuda
+from numba import cuda
+
+
+CUDA_AVAILABLE = cuda.is_available()
+
+
+@pytest.mark.skipif(
+    not CUDA_AVAILABLE,
+    reason="CUDA GPU is not available"
+)
+def test_cuda_matches_cpu_results():
+
+    sequences = [
+        {"id": "Gene_A", "sequence": "ATGCGTACGTAG"},
+        {"id": "Gene_B", "sequence": "ATGCGTACGTAA"},
+        {"id": "Gene_C", "sequence": "CCCCCCCCCCCC"},
+    ]
+
+    cpu_results = find_off_targets(
+        sequences, "ATGCGTACGTAG", 2
+    )
+
+    cuda_results = find_off_targets_cuda(
+        sequences, "ATGCGTACGTAG", 2
+    )
+
+    assert cuda_results == cpu_results
+
+
+@pytest.mark.skipif(
+    not CUDA_AVAILABLE,
+    reason="CUDA GPU is not available"
+)
+def test_cuda_handles_multiple_genes_and_unknown_bases():
+
+    sequences = [
+        {"id": "Gene_A", "sequence": "ATGCNATGCATGC"},
+        {"id": "Gene_B", "sequence": "ATGCGTACGTAG"},
+        {"id": "Gene_C", "sequence": "ATG"},
+    ]
+
+    cpu_results = find_off_targets(
+        sequences, "ATGC", 2
+    )
+
+    cuda_results = find_off_targets_cuda(
+        sequences, "ATGC", 2
+    )
+
+    assert cuda_results == cpu_results
+
+
+def test_cuda_returns_empty_when_no_candidate_windows():
+
+    sequences = [
+        {"id": "Gene_A", "sequence": "ATG"}
+    ]
+
+    results = find_off_targets_cuda(
+        sequences, "ATGCGTAC", 2
+    )
+
+    assert results == []
+
+
+def test_cuda_rejects_invalid_guide():
+
+    sequences = [
+        {"id": "Gene_A", "sequence": "ATGCATGC"}
+    ]
+
+    with pytest.raises(ValueError, match="invalid DNA base"):
+        find_off_targets_cuda(sequences, "ATGCX", 2)
+
+
+def test_cuda_rejects_invalid_mismatch_limit():
+
+    sequences = [
+        {"id": "Gene_A", "sequence": "ATGCATGC"}
+    ]
+
+    with pytest.raises(ValueError):
+        find_off_targets_cuda(sequences, "ATGC", -1)
+
+
+def test_cuda_rejects_invalid_gene_record():
+
+    with pytest.raises(ValueError):
+        find_off_targets_cuda(
+            [{"id": "Gene_A"}], "ATGC", 2
+        )
+
+
+def test_cuda_unavailable_raises_runtime_error(monkeypatch):
+
+    monkeypatch.setattr(
+        cuda_module.cuda,
+        "is_available",
+        lambda: False
+    )
+
+    sequences = [
+        {"id": "Gene_A", "sequence": "ATGCATGC"}
+    ]
+
+    with pytest.raises(RuntimeError, match="CUDA GPU is unavailable"):
+        find_off_targets_cuda(sequences, "ATGC", 2)
