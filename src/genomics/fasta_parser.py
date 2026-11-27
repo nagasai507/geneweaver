@@ -1,20 +1,29 @@
-
-from Bio import SeqIO
+﻿from Bio import SeqIO
 
 
 def parse_fasta(file_path):
     """
-    Read a FASTA file and extract genomic sequences.
+    Read a FASTA file and validate DNA sequences.
+    Allowed bases: A, T, G, C, N.
     """
     sequences = []
+    valid_bases = set("ATGCN")
 
     for record in SeqIO.parse(file_path, "fasta"):
         sequence = str(record.seq).upper()
 
-        # Keep only valid DNA bases
-        sequence = "".join(
-            base for base in sequence if base in "ATGC"
-        )
+        if not sequence:
+            raise ValueError(
+                f"Gene '{record.id}' contains an empty DNA sequence"
+            )
+
+        invalid_bases = set(sequence) - valid_bases
+
+        if invalid_bases:
+            invalid = ", ".join(sorted(invalid_bases))
+            raise ValueError(
+                f"Gene '{record.id}' contains invalid DNA base(s): {invalid}"
+            )
 
         sequences.append({
             "id": record.id,
@@ -22,6 +31,9 @@ def parse_fasta(file_path):
             "sequence": sequence,
             "length": len(sequence)
         })
+
+    if not sequences:
+        raise ValueError("FASTA file contains no sequences")
 
     return sequences
 

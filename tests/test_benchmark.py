@@ -1,0 +1,123 @@
+import pytest
+from benchmarks.benchmark import (
+    create_test_data,
+    run_benchmark,
+    _validate_matching_results,
+)
+
+
+def test_benchmark_creates_three_genes():
+    sequences, guide = create_test_data()
+
+    assert len(sequences) == 3
+
+
+def test_benchmark_gene_lengths_and_known_matches():
+    sequences, guide = create_test_data()
+
+    for gene in sequences:
+        dna = gene["sequence"]
+
+        assert len(dna) == 50000
+        assert dna[1000:1012] == guide
+        assert dna[25000:25012] == guide
+
+
+def test_benchmark_data_is_reproducible():
+    first_sequences, first_guide = create_test_data()
+    second_sequences, second_guide = create_test_data()
+
+    assert first_guide == second_guide
+    assert first_sequences == second_sequences
+
+
+def test_benchmark_supports_custom_dataset_size():
+    sequences, guide = create_test_data(
+        num_genes=10,
+        sequence_length=30000
+    )
+
+    assert len(sequences) == 10
+
+    for gene in sequences:
+        dna = gene["sequence"]
+
+        assert len(dna) == 30000
+        assert dna[1000:1012] == guide
+        assert dna[25000:25012] == guide
+
+
+def test_benchmark_rejects_short_sequences():
+    import pytest
+
+    with pytest.raises(ValueError):
+        create_test_data(sequence_length=10000)
+
+
+def test_benchmark_rejects_zero_genes():
+    import pytest
+
+    with pytest.raises(ValueError):
+        create_test_data(num_genes=0)
+
+
+def test_benchmark_rejects_negative_genes():
+    import pytest
+
+    with pytest.raises(ValueError):
+        create_test_data(num_genes=-5)
+
+
+def test_benchmark_rejects_zero_iterations():
+    import pytest
+
+    with pytest.raises(ValueError):
+        run_benchmark(iterations=0)
+
+
+def test_benchmark_rejects_negative_iterations():
+    import pytest
+
+    with pytest.raises(ValueError):
+        run_benchmark(iterations=-5)
+
+@pytest.mark.parametrize(
+    "function, kwargs",
+    [
+        (create_test_data, {"num_genes": 2.5}),
+        (create_test_data, {"num_genes": True}),
+        (create_test_data, {"num_genes": "3"}),
+        (create_test_data, {"sequence_length": 30000.5}),
+        (create_test_data, {"sequence_length": True}),
+        (create_test_data, {"sequence_length": "30000"}),
+        (run_benchmark, {"iterations": 2.5}),
+        (run_benchmark, {"iterations": True}),
+        (run_benchmark, {"iterations": "2"}),
+    ],
+)
+def test_benchmark_rejects_non_integer_inputs(function, kwargs):
+    with pytest.raises(
+        ValueError,
+        match="must be a positive integer",
+    ):
+        function(**kwargs)
+
+def test_benchmark_accepts_identical_results():
+    results = [{"gene": "Gene_1", "risk": "HIGH"}]
+
+    _validate_matching_results(results, results, results)
+
+def test_benchmark_rejects_different_results():
+    cpu_results = [{"gene": "Gene_1", "risk": "HIGH"}]
+    numba_results = [{"gene": "Gene_1", "risk": "LOW"}]
+    dask_results = [{"gene": "Gene_1", "risk": "HIGH"}]
+
+    with pytest.raises(
+        RuntimeError,
+        match="produced different results",
+    ):
+        _validate_matching_results(
+            cpu_results,
+            numba_results,
+            dask_results,
+        )

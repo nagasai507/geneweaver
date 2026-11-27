@@ -2,3 +2,5 @@ biopython
 numpy
 pandas
 pytest
+numba
+dask[distributed]

@@ -1,10 +1,17 @@
-﻿def find_off_targets(sequences, guide_sequence, max_mismatches=2):
+﻿from src.alignment.validation import (
+    validate_guide_sequence,
+    validate_max_mismatches,
+    validate_gene_records,
+)
+
+def find_off_targets(sequences, guide_sequence, max_mismatches=2):
     """
     Find DNA regions matching a CRISPR guide sequence.
     Uses sliding-window Hamming distance.
     """
-
-    guide_sequence = guide_sequence.upper()
+    guide_sequence = validate_guide_sequence(guide_sequence)
+    max_mismatches = validate_max_mismatches(max_mismatches)
+    sequences = validate_gene_records(sequences)
     guide_length = len(guide_sequence)
 
     results = []
