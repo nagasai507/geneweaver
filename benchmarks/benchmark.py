@@ -8,26 +8,36 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from numba import cuda
+
 from src.alignment.cpu_baseline import find_off_targets
 from src.alignment.numba_accelerated import find_off_targets_numba
 from src.alignment.dask_accelerated import find_off_targets_dask
+from src.alignment.cuda_accelerated import find_off_targets_cuda
 
-def _validate_matching_results(cpu_results, numba_results, dask_results):
-    """
-    Ensure CPU, Numba, and Dask produce identical results.
-    """
-    if not (
-        cpu_results == numba_results == dask_results
-    ):
+
+def _validate_matching_results(
+    cpu_results,
+    numba_results,
+    dask_results,
+    cuda_results=None,
+):
+    """Ensure all available engines produce identical results."""
+
+    if not (cpu_results == numba_results == dask_results):
         raise RuntimeError(
             "CPU, Numba, and Dask produced different results"
         )
 
+    if cuda_results is not None and cpu_results != cuda_results:
+        raise RuntimeError(
+            "CUDA produced different results"
+        )
+
+
 def _validate_positive_integer(value, parameter_name):
-    """
-    Validate that a value is a positive integer.
-    Boolean values are not accepted as integers.
-    """
+    """Validate a positive integer. Booleans are not accepted."""
+
     if (
         isinstance(value, bool)
         or not isinstance(value, int)
@@ -36,15 +46,21 @@ def _validate_positive_integer(value, parameter_name):
         raise ValueError(
             f"{parameter_name} must be a positive integer"
         )
+
     return value
 
 
 def create_test_data(num_genes=3, sequence_length=50000):
+    """Generate reproducible synthetic DNA sequences."""
+
     rng = random.Random(42)
     guide = "ATGCGTACGTAG"
     sequences = []
 
-    num_genes = _validate_positive_integer(num_genes, "Number of genes")
+    num_genes = _validate_positive_integer(
+        num_genes, "Number of genes"
+    )
+
     sequence_length = _validate_positive_integer(
         sequence_length, "Sequence length"
     )
@@ -53,15 +69,18 @@ def create_test_data(num_genes=3, sequence_length=50000):
         raise ValueError("Sequence length is too short")
 
     for i in range(num_genes):
-        dna = [rng.choice("ATGC") for _ in range(sequence_length)]
+        dna = [
+            rng.choice("ATGC")
+            for _ in range(sequence_length)
+        ]
 
-        # Insert known exact matches
+        # Insert two known exact matches.
         dna[1000:1012] = guide
         dna[25000:25012] = guide
 
         sequences.append({
             "id": f"Synthetic_Gene_{i + 1}",
-            "sequence": "".join(dna)
+            "sequence": "".join(dna),
         })
 
     return sequences, guide
@@ -76,89 +95,162 @@ def run_benchmark(iterations=20):
     dataset_sizes = [
         ("Small", 3),
         ("Medium", 10),
-        ("Large", 25)
+        ("Large", 25),
     ]
 
-    print("\n===== GENEWEAVER SCALABILITY BENCHMARK =====")
-    print("Iterations per method:", iterations)
+    cuda_available = cuda.is_available()
+
+    print("\n==========================================")
+    print("       GENEWEAVER PERFORMANCE TEST")
+    print("==========================================")
+
+    print("Iterations per engine:", iterations)
+
+    if cuda_available:
+        print("CUDA GPU:", cuda.get_current_device().name)
+    else:
+        print("CUDA GPU: Not available (CUDA test skipped)")
 
     for dataset_name, num_genes in dataset_sizes:
 
         sequences, guide = create_test_data(
             num_genes=num_genes,
-            sequence_length=50000
+            sequence_length=50000,
         )
 
         total_bases = sum(
-            len(gene["sequence"]) for gene in sequences
+            len(gene["sequence"])
+            for gene in sequences
         )
 
-        print(f"\n===== {dataset_name.upper()} DATASET =====")
-        print("Number of genes:", num_genes)
+        print(f"\n{'=' * 45}")
+        print(f"{dataset_name.upper()} DATASET")
+        print("=" * 45)
+
+        print("Genes:", num_genes)
         print("Bases per gene:", len(sequences[0]["sequence"]))
         print("Total DNA bases:", total_bases)
 
-        # Warm up Numba and Dask before measuring
-        find_off_targets_numba(sequences, guide, 2)
-        find_off_targets_dask(sequences, guide, 2)
+        # CPU reference.
+        print("\nPreparing reference results...")
+        reference = find_off_targets(sequences, guide, 2)
 
-        cpu_times = []
-        numba_times = []
-        dask_times = []
+        # Prepare available engines.
+        methods = {
+            "CPU": find_off_targets,
+            "Numba": find_off_targets_numba,
+            "Dask": find_off_targets_dask,
+        }
 
-        for _ in range(iterations):
+        if cuda_available:
+            methods["CUDA"] = find_off_targets_cuda
 
-            start = time.perf_counter()
-            cpu_results = find_off_targets(sequences, guide, 2)
-            cpu_times.append((time.perf_counter() - start) * 1000)
+        # Warm up all engines before measurement.
+        print("Warming up engines...")
 
-            start = time.perf_counter()
-            numba_results = find_off_targets_numba(sequences, guide, 2)
-            numba_times.append((time.perf_counter() - start) * 1000)
+        warmup_results = {}
 
-            start = time.perf_counter()
-            dask_results = find_off_targets_dask(sequences, guide, 2)
-            dask_times.append((time.perf_counter() - start) * 1000)
+        for name, function in methods.items():
+            result = function(sequences, guide, 2)
 
-        # Verify that all methods produce identical results
+            if name == "CUDA":
+                cuda.synchronize()
+
+            warmup_results[name] = result
+
         _validate_matching_results(
-            cpu_results,
-            numba_results,
-            dask_results
+            reference,
+            warmup_results["Numba"],
+            warmup_results["Dask"],
+            warmup_results.get("CUDA"),
         )
 
-        cpu_average = statistics.mean(cpu_times)
-        numba_average = statistics.mean(numba_times)
-        dask_average = statistics.mean(dask_times)
+        print("Warm-up and correctness checks: PASSED")
 
-        print("\nCPU average:", f"{cpu_average:.4f} ms")
-        print("CPU median:", f"{statistics.median(cpu_times):.4f} ms")
+        # Measure each engine.
+        timings = {}
+        final_results = {}
 
-        print("\nNumba average:", f"{numba_average:.4f} ms")
-        print("Numba median:", f"{statistics.median(numba_times):.4f} ms")
+        for name, function in methods.items():
 
-        print("\nDask average:", f"{dask_average:.4f} ms")
-        print("Dask median:", f"{statistics.median(dask_times):.4f} ms")
+            print(f"\nBenchmarking {name}...")
 
-        print("\nPotential matches:", len(cpu_results))
-        print("Results identical: YES")
+            engine_times = []
 
-        print("\nPerformance compared with CPU:")
+            for iteration in range(iterations):
 
-        for name, average in [
-            ("Numba", numba_average),
-            ("Dask", dask_average)
-        ]:
-            if average < cpu_average:
-                print(f"{name} speedup: {cpu_average / average:.2f}x")
+                start = time.perf_counter()
+
+                result = function(sequences, guide, 2)
+
+                if name == "CUDA":
+                    cuda.synchronize()
+
+                elapsed = (
+                    time.perf_counter() - start
+                ) * 1000
+
+                engine_times.append(elapsed)
+                final_results[name] = result
+
+                if result != reference:
+                    raise RuntimeError(
+                        f"{name} results differ from CPU reference"
+                    )
+
+            timings[name] = engine_times
+
+        # Validate final outputs.
+        _validate_matching_results(
+            final_results["CPU"],
+            final_results["Numba"],
+            final_results["Dask"],
+            final_results.get("CUDA"),
+        )
+
+        # Display performance results.
+        print("\n---------- RESULTS ----------")
+
+        medians = {}
+
+        for name, engine_times in timings.items():
+
+            average = statistics.mean(engine_times)
+            median = statistics.median(engine_times)
+
+            medians[name] = median
+
+            print(f"\n{name}:")
+            print(f"  Average: {average:.2f} ms")
+            print(f"  Median:  {median:.2f} ms")
+
+        # Compare median execution times.
+        cpu_median = medians["CPU"]
+
+        print("\n------ SPEEDUP VS CPU ------")
+
+        for name, median in medians.items():
+
+            if name == "CPU":
+                continue
+
+            if median < cpu_median:
+                print(
+                    f"{name}: "
+                    f"{cpu_median / median:.2f}x faster"
+                )
             else:
                 print(
-                    f"{name} performance ratio: "
-                    f"{average / cpu_average:.2f}x slower"
+                    f"{name}: "
+                    f"{median / cpu_median:.2f}x slower"
                 )
 
-    print("\n===== SCALABILITY BENCHMARK COMPLETED =====")
+        print("\nPotential matches:", len(reference))
+        print("All engine results identical: YES")
 
+    print("\n==========================================")
+    print("  GENEWEAVER BENCHMARK COMPLETED")
+    print("==========================================")
 
 
 if __name__ == "__main__":
